@@ -49,4 +49,4 @@ async def get_tashkent_weather():
         result = {}
         for forecast in forecasts:
             date = forecast.get("localDate")
-            description = forecast.get("enhancedWeath
+            description = forecast.get("enhancedWeath")
