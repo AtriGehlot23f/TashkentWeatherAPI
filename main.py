@@ -1,45 +1,42 @@
 from fastapi import FastAPI
 import httpx
-import os
 
 app = FastAPI()
 
 RAPIDAPI_KEY = "f748dbb612msh392946279a904c6p114238jsndac2cd9fbc7b"
 RAPIDAPI_HOST = "weatherapi-com.p.rapidapi.com"
-BASE_URL = f"https://{RAPIDAPI_HOST}/current.json"
+FORECAST_URL = f"https://{RAPIDAPI_HOST}/forecast.json"
 
 @app.get("/")
 def root():
-    return {"message": "Welcome to Tashkent Weather API"}
+    return {"message": "Welcome to Tashkent Weather Forecast API"}
 
 @app.get("/api/tashkent-weather")
-async def get_tashkent_weather():
+async def get_tashkent_forecast():
     headers = {
         "X-RapidAPI-Key": RAPIDAPI_KEY,
         "X-RapidAPI-Host": RAPIDAPI_HOST
     }
     params = {
-        "q": "Tashkent"
+        "q": "Tashkent",
+        "days": 3,
     }
 
     try:
         async with httpx.AsyncClient() as client:
-            response = await client.get(BASE_URL, headers=headers, params=params)
+            response = await client.get(FORECAST_URL, headers=headers, params=params)
             response.raise_for_status()
             data = response.json()
 
-            current = data["current"]
-            location = data["location"]
+            forecast_data = data["forecast"]["forecastday"]
 
-            return {
-                "location": location["name"],
-                "country": location["country"],
-                "temperature_c": current["temp_c"],
-                "condition": current["condition"]["text"],
-                "wind_kph": current["wind_kph"],
-                "humidity": current["humidity"],
-                "localtime": location["localtime"]
-            }
+            result = {}
+            for day in forecast_data:
+                date = day["date"]
+                condition = day["day"]["condition"]["text"]
+                result[date] = condition
+
+            return result
 
     except httpx.RequestError as e:
         return {"error": f"Request error: {e}"}
