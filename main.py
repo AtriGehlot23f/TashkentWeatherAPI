@@ -1,52 +1,49 @@
-from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
+from fastapi import FastAPI
 import httpx
+import os
 
 app = FastAPI()
 
-# CORS middleware to allow cross-origin requests
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+RAPIDAPI_KEY = "f748dbb612msh392946279a904c6p114238jsndac2cd9fbc7b"
+RAPIDAPI_HOST = "weatherapi-com.p.rapidapi.com"
+BASE_URL = f"https://{RAPIDAPI_HOST}/current.json"
 
-BBC_LOCATION_API = "https://locator-service.api.bbc.com/locations?search={city}&filter=weather"
-BBC_WEATHER_API = "https://weather-broker-cdn.api.bbci.co.uk/en/forecast/rss/3day/{location_id}"
+@app.get("/")
+def root():
+    return {"message": "Welcome to Tashkent Weather API"}
 
 @app.get("/api/tashkent-weather")
 async def get_tashkent_weather():
-    city = "Tashkent"
-    
+    headers = {
+        "X-RapidAPI-Key": RAPIDAPI_KEY,
+        "X-RapidAPI-Host": RAPIDAPI_HOST
+    }
+    params = {
+        "q": "Tashkent"
+    }
+
     try:
-        # Get location ID
         async with httpx.AsyncClient() as client:
-            response = await client.get(BBC_LOCATION_API.format(city=city))
+            response = await client.get(BASE_URL, headers=headers, params=params)
             response.raise_for_status()
             data = response.json()
+
+            current = data["current"]
+            location = data["location"]
+
+            return {
+                "location": location["name"],
+                "country": location["country"],
+                "temperature_c": current["temp_c"],
+                "condition": current["condition"]["text"],
+                "wind_kph": current["wind_kph"],
+                "humidity": current["humidity"],
+                "localtime": location["localtime"]
+            }
+
+    except httpx.RequestError as e:
+        return {"error": f"Request error: {e}"}
+    except httpx.HTTPStatusError as e:
+        return {"error": f"HTTP error: {e.response.status_code} - {e.response.text}"}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to fetch location ID: {e}")
-
-    # Extract location ID
-    try:
-        location_id = data["response"]["results"][0]["id"]
-    except (KeyError, IndexError):
-        raise HTTPException(status_code=404, detail="404: Location ID not found")
-
-    # Get weather data
-    try:
-        weather_url = f"https://weather-broker-cdn.api.bbci.co.uk/en/forecast/api/observe/{location_id}"
-        async with httpx.AsyncClient() as client:
-            response = await client.get(weather_url)
-            response.raise_for_status()
-            weather_data = response.json()
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to fetch weather data: {e}")
-
-    try:
-        forecasts = weather_data["forecasts"]
-        result = {}
-        for forecast in forecasts:
-            date = forecast.get("localDate")
-            description = forecast.get("enhancedWeath")
+        return {"error": f"Unexpected error: {str(e)}"}
