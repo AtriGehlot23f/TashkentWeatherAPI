@@ -4,7 +4,7 @@ import httpx
 app = FastAPI()
 
 BBC_LOCATOR_URL = "https://locator-service.api.bbc.com/locations?search={}"
-BBC_WEATHER_URL = "https://weather-broker-cdn.api.bbci.co.uk/en/forecast/rss/3day/{}"
+BBC_WEATHER_URL = "https://weather-broker-cdn.api.bbci.co.uk/en/forecast/aggregated/{}"
 
 HEADERS = {
     "User-Agent": "Mozilla/5.0"
@@ -15,26 +15,34 @@ async def get_weather():
     city = "Tashkent"
 
     # Step 1: Get location ID
-    async with httpx.AsyncClient() as client:
-        try:
+    try:
+        async with httpx.AsyncClient() as client:
             locator_resp = await client.get(BBC_LOCATOR_URL.format(city), headers=HEADERS)
+            locator_resp.raise_for_status()
             data = locator_resp.json()
-        except Exception:
-            raise HTTPException(status_code=500, detail="Failed to fetch location ID")
+            print("BBC Locator API response:", data)
+    except Exception as e:
+        print("Failed to fetch location ID:", str(e))
+        raise HTTPException(status_code=500, detail="Failed to fetch location ID")
 
     try:
         location_id = data["data"][0]["id"]
-    except (KeyError, IndexError):
-        raise HTTPException(status_code=404, detail="404: Location ID not found")
+        print("Location ID:", location_id)
+    except (KeyError, IndexError) as e:
+        print("Error extracting location ID:", str(e))
+        raise HTTPException(status_code=404, detail="Location ID not found")
 
-    # Step 2: Get weather data (JSON format version)
-    weather_api_url = f"https://weather-broker-cdn.api.bbci.co.uk/en/forecast/aggregated/{location_id}"
-    async with httpx.AsyncClient() as client:
-        try:
+    # Step 2: Get weather data
+    weather_api_url = BBC_WEATHER_URL.format(location_id)
+    try:
+        async with httpx.AsyncClient() as client:
             weather_resp = await client.get(weather_api_url, headers=HEADERS)
+            weather_resp.raise_for_status()
             forecast_data = weather_resp.json()
-        except Exception:
-            raise HTTPException(status_code=500, detail="Failed to fetch weather data")
+            print("BBC Weather API response:", forecast_data)
+    except Exception as e:
+        print("Failed to fetch weather data:", str(e))
+        raise HTTPException(status_code=500, detail="Failed to fetch weather data")
 
     try:
         forecasts = forecast_data["forecasts"]
@@ -43,5 +51,6 @@ async def get_weather():
             for entry in forecasts
         }
         return result
-    except Exception:
+    except Exception as e:
+        print("Failed to parse forecast:", str(e))
         raise HTTPException(status_code=500, detail="Failed to parse forecast")
