@@ -19,7 +19,7 @@ async def get_tashkent_forecast():
     }
     params = {
         "q": "Tashkent",
-        "days": 3,
+        "days": 7,
     }
 
     try:
@@ -34,7 +34,8 @@ async def get_tashkent_forecast():
             for day in forecast_data:
                 date = day["date"]
                 condition = day["day"]["condition"]["text"]
-                result[date] = condition
+                temp_c = day["day"]["avgtemp_c"]
+                result[date] = f"{condition}, {temp_c}°C"
 
             return result
 
