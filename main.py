@@ -9,7 +9,7 @@ FORECAST_URL = f"https://{RAPIDAPI_HOST}/forecast.json"
 
 @app.get("/")
 def root():
-    return {"message": "Welcome to Tashkent Weather Forecast API"}
+    return {"message": "Welcome to the Tashkent 14-day Weather API"}
 
 @app.get("/api/tashkent-weather")
 async def get_tashkent_forecast():
@@ -19,7 +19,7 @@ async def get_tashkent_forecast():
     }
     params = {
         "q": "Tashkent",
-        "days": 7,
+        "days": 14
     }
 
     try:
@@ -28,20 +28,15 @@ async def get_tashkent_forecast():
             response.raise_for_status()
             data = response.json()
 
-            forecast_data = data["forecast"]["forecastday"]
+            forecast_days = data["forecast"]["forecastday"]
 
-            result = {}
-            for day in forecast_data:
-                date = day["date"]
-                condition = day["day"]["condition"]["text"]
-                temp_c = day["day"]["avgtemp_c"]
-                result[date] = f"{condition}, {temp_c}°C"
+            # Build output: { "YYYY-MM-DD": "Weather condition" }
+            result = {
+                day["date"]: day["day"]["condition"]["text"]
+                for day in forecast_days
+            }
 
             return result
 
-    except httpx.RequestError as e:
-        return {"error": f"Request error: {e}"}
-    except httpx.HTTPStatusError as e:
-        return {"error": f"HTTP error: {e.response.status_code} - {e.response.text}"}
     except Exception as e:
-        return {"error": f"Unexpected error: {str(e)}"}
+        return {"error": str(e)}
